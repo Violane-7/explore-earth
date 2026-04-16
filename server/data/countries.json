@@ -1,0 +1,10 @@
+{
+    "IN": {
+        "name": "India",
+        "summary": "A diverse country in South Asia",
+        "food": [
+            "Biryani",
+            "Dosa"
+        ]
+    }
+}
