@@ -2,9 +2,9 @@ import "./ModeToggle.css";
 
 export default function ModeToggle({ currentMode, onModeChange }) {
   const modes = [
-    { id: "countries", label: "🌍 Countries", icon: "🗺️" },
-    { id: "continents", label: "🌎 Continents", icon: "🌏" },
-    { id: "cities", label: "🏙️ Cities", icon: "🏢" },
+    { id: "countries", label: "Countries", icon: "🌍" },
+    { id: "continents", label: "Continents", icon: "🗺️" },
+    { id: "cities", label: "Cities", icon: "🏙️" },
   ];
 
   return (
@@ -18,7 +18,8 @@ export default function ModeToggle({ currentMode, onModeChange }) {
             onClick={() => onModeChange(mode.id)}
             title={mode.label}
           >
-            {mode.icon}
+            <span>{mode.icon}</span>
+            <span>{mode.label}</span>
           </button>
         ))}
       </div>

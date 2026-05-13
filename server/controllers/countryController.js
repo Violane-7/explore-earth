@@ -16,10 +16,14 @@ export const getCountry = (req, res) => {
 
   res.json({
     name: country.name,
+    continent: country.continent ?? null,
     summary: country.summary ?? "A vibrant nation with deep heritage.",
     culture: country.culture ?? "Rich local customs, festivals, and traditions.",
     food: country.food ?? [],
     places: country.places ?? [],
     temperature: country.temperature ?? "Varies by region and season.",
+    language: country.language ?? null,
+    currency: country.currency ?? null,
+    timezone: country.timezone ?? null,
   });
 };

@@ -4,6 +4,22 @@ import Earth from "./Earth";
 import { forwardRef, useImperativeHandle, useRef } from "react";
 import * as THREE from "three";
 
+// OrbitControls must be defined OUTSIDE the Globe component
+// to avoid remounting on every render (which would break the ref)
+const GlobeControls = ({ controlsRef }) => (
+  <OrbitControls
+    ref={controlsRef}
+    makeDefault
+    enableZoom
+    minDistance={1.5}
+    maxDistance={8}
+    enablePan={false}
+    dampingFactor={0.08}
+    enableDamping
+    autoRotate={false}
+  />
+);
+
 const Globe = forwardRef(({ onCountrySelect, onHover, onHoverEnd, highlightedCountry, viewMode }, ref) => {
   const controlsRef = useRef();
 
@@ -23,24 +39,10 @@ const Globe = forwardRef(({ onCountrySelect, onHover, onHoverEnd, highlightedCou
       const camera = controlsRef.current.object;
       const targetPosition = destination.clone().multiplyScalar(4.2);
       camera.position.lerp(targetPosition, 0.6);
-      controlsRef.current.target.copy(destination);
+      controlsRef.current.target.set(0, 0, 0);
       controlsRef.current.update();
     },
   }));
-
-  const Controls = () => {
-    return (
-      <OrbitControls
-        ref={controlsRef}
-        makeDefault
-        enableZoom
-        enablePan={false}
-        dampingFactor={0.08}
-        enableDamping
-        autoRotate={false}
-      />
-    );
-  };
 
   return (
     <Canvas
@@ -49,9 +51,10 @@ const Globe = forwardRef(({ onCountrySelect, onHover, onHoverEnd, highlightedCou
       style={{ width: "100%", height: "100%" }}
     >
       {/* Lighting */}
-      <ambientLight intensity={0.3} />
-      <directionalLight position={[5, 3, 5]} intensity={2} />
-      <directionalLight position={[-5, -3, -5]} intensity={0.8} />
+      <ambientLight intensity={0.35} />
+      <directionalLight position={[5, 3, 5]} intensity={2.2} color="#fff8f0" />
+      <directionalLight position={[-5, -3, -5]} intensity={0.6} color="#c8e0ff" />
+      <pointLight position={[0, 8, 0]} intensity={0.4} color="#ffffff" />
 
       {/* Earth */}
       <Earth
@@ -62,13 +65,14 @@ const Globe = forwardRef(({ onCountrySelect, onHover, onHoverEnd, highlightedCou
         viewMode={viewMode}
       />
 
-      {/* Stars */}
-      <Stars radius={100} depth={50} count={5000} factor={4} />
+      {/* Background stars */}
+      <Stars radius={120} depth={60} count={6000} factor={4} saturation={0.3} fade />
 
       {/* Controls */}
-      <Controls />
+      <GlobeControls controlsRef={controlsRef} />
     </Canvas>
   );
 });
 
+Globe.displayName = "Globe";
 export default Globe;

@@ -3,15 +3,17 @@ import * as THREE from "three";
 import { useRef, useState } from "react";
 import { getCountryFromLatLon } from "../../utils/geoUtils";
 
-export default function Earth({ onCountrySelect, onHover, onHoverEnd, highlightedCountry, viewMode }) {
+export default function Earth({ onCountrySelect, onHover, onHoverEnd, highlightedCountry }) {
   const earthRef = useRef();
   const cloudRef = useRef();
   const highlightRef = useRef();
   const [hoveredCountry, setHoveredCountry] = useState(null);
+  const [isPointerDown, setIsPointerDown] = useState(false);
 
   const texture = useLoader(THREE.TextureLoader, "/textures/earth.jpg");
   const clouds = useLoader(THREE.TextureLoader, "/textures/clouds.png");
 
+  // Convert local 3D point → lat/lon
   const getLatLong = (localPoint) => {
     const { x, y, z } = localPoint;
     const radius = Math.sqrt(x * x + y * y + z * z);
@@ -20,109 +22,122 @@ export default function Earth({ onCountrySelect, onHover, onHoverEnd, highlighte
     return { lat, lon };
   };
 
+  const handlePointerDown = () => setIsPointerDown(false);
+  const handlePointerUp = (event) => {
+    if (!isPointerDown) {
+      handleClick(event);
+    }
+  };
+
   const handleClick = (event) => {
     event.stopPropagation();
-
     const mesh = event.object;
     const worldPoint = event.point.clone();
     const localPoint = mesh.worldToLocal(worldPoint);
     const { lat, lon } = getLatLong(localPoint);
-    const countryCode = getCountryFromLatLon(lat, lon);
-
-    if (onCountrySelect) {
-      onCountrySelect(countryCode);
-    }
+    const code = getCountryFromLatLon(lat, lon);
+    onCountrySelect?.(code);
   };
 
   const handlePointerMove = (event) => {
+    setIsPointerDown(true);
     if (event.object.name !== "earth") return;
 
     const mesh = event.object;
     const worldPoint = event.point.clone();
     const localPoint = mesh.worldToLocal(worldPoint);
     const { lat, lon } = getLatLong(localPoint);
-    const countryCode = getCountryFromLatLon(lat, lon);
+    const code = getCountryFromLatLon(lat, lon);
 
-    if (countryCode && onHover) {
-      const position = {
-        x: event.clientX,
-        y: event.clientY
-      };
-      onHover(countryCode, position);
+    setHoveredCountry(code || null);
+
+    if (code && onHover) {
+      onHover(code, { x: event.clientX, y: event.clientY });
+    } else if (!code && onHoverEnd) {
+      onHoverEnd();
     }
-    setHoveredCountry(countryCode);
   };
 
   const handlePointerLeave = () => {
     setHoveredCountry(null);
-    if (onHoverEnd) onHoverEnd();
+    onHoverEnd?.();
   };
 
   useFrame(() => {
-    if (earthRef.current && cloudRef.current) {
-      earthRef.current.rotation.y += 0.0008;
-      cloudRef.current.rotation.y += 0.001;
+    // Slow auto-rotation — pause when country selected for clean UX
+    if (earthRef.current && cloudRef.current && !highlightedCountry) {
+      earthRef.current.rotation.y += 0.0006;
+      cloudRef.current.rotation.y += 0.0009;
+    } else if (cloudRef.current) {
+      // Clouds always drift slightly
+      cloudRef.current.rotation.y += 0.0003;
     }
 
-    // Add subtle pulsing effect to highlighted country glow
+    // Pulsing glow when country selected
     if (highlightRef.current && highlightedCountry) {
-      const time = Date.now() * 0.001;
-      const pulse = Math.sin(time * 2) * 0.05 + 1;
-      highlightRef.current.scale.set(1.15 * pulse, 1.15 * pulse, 1.15 * pulse);
+      const pulse = Math.sin(Date.now() * 0.002) * 0.04 + 1;
+      highlightRef.current.scale.setScalar(1.12 * pulse);
     }
   });
 
   return (
     <>
-      {/* Earth */}
-      <mesh ref={earthRef} onClick={handleClick} onPointerMove={handlePointerMove} onPointerLeave={handlePointerLeave} name="earth">
-        <sphereGeometry args={[1, 128, 128]} />
-        <meshStandardMaterial map={texture} />
+      {/* Earth sphere */}
+      <mesh
+        ref={earthRef}
+        name="earth"
+        onClick={handleClick}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerLeave={handlePointerLeave}
+      >
+        <sphereGeometry args={[1, 64, 64]} />
+        <meshStandardMaterial map={texture} roughness={0.8} metalness={0.05} />
       </mesh>
 
-      {/* Clouds */}
-      <mesh ref={cloudRef} scale={[1.01, 1.01, 1.01]}>
-        <sphereGeometry args={[1, 128, 128]} />
+      {/* Cloud layer */}
+      <mesh ref={cloudRef} scale={[1.012, 1.012, 1.012]}>
+        <sphereGeometry args={[1, 48, 48]} />
         <meshStandardMaterial
           map={clouds}
           transparent
-          opacity={0.4}
+          opacity={0.35}
           depthWrite={false}
         />
       </mesh>
 
-      {/* Glow */}
-      <mesh scale={[1.08, 1.08, 1.08]}>
-        <sphereGeometry args={[1, 64, 64]} />
+      {/* Atmosphere glow (always visible) */}
+      <mesh scale={[1.06, 1.06, 1.06]}>
+        <sphereGeometry args={[1, 32, 32]} />
         <meshBasicMaterial
-          color="#3aa7ff"
+          color="#3a8fff"
           transparent
-          opacity={0.15}
+          opacity={0.12}
           side={THREE.BackSide}
         />
       </mesh>
 
-      {/* Highlight glow when country is selected */}
+      {/* Selection glow — pulsing green ring when country selected */}
       {highlightedCountry && (
-        <mesh ref={highlightRef} scale={[1.15, 1.15, 1.15]}>
-          <sphereGeometry args={[1, 64, 64]} />
+        <mesh ref={highlightRef} scale={[1.12, 1.12, 1.12]}>
+          <sphereGeometry args={[1, 32, 32]} />
           <meshBasicMaterial
-            color="#00ff88"
+            color="#00e87a"
             transparent
-            opacity={0.2}
+            opacity={0.18}
             side={THREE.BackSide}
           />
         </mesh>
       )}
 
-      {/* Hover glow */}
+      {/* Hover glow — warm orange when hovering over a country (no selection) */}
       {hoveredCountry && !highlightedCountry && (
-        <mesh scale={[1.05, 1.05, 1.05]}>
-          <sphereGeometry args={[1, 64, 64]} />
+        <mesh scale={[1.04, 1.04, 1.04]}>
+          <sphereGeometry args={[1, 32, 32]} />
           <meshBasicMaterial
             color="#ff9500"
             transparent
-            opacity={0.15}
+            opacity={0.12}
             side={THREE.BackSide}
           />
         </mesh>

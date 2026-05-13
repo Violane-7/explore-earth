@@ -1,7 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import Globe from "./components/Globe/Globe";
 import Sidebar from "./components/UI/Sidebar";
 import Tooltip from "./components/UI/Tooltip";
+import Toast from "./components/UI/Toast";
+import { getCountryName } from "./utils/countryMeta";
 import "./App.css";
 
 const apiBase = import.meta.env.VITE_API_URL || "http://localhost:5001";
@@ -11,111 +13,58 @@ function App() {
   const [countryCode, setCountryCode] = useState(null);
   const [countryData, setCountryData] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [toast, setToast] = useState(null);        // { message, type, id }
   const [viewMode, setViewMode] = useState("countries");
   const [hoveredCountry, setHoveredCountry] = useState(null);
   const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 });
-  const [errorTimeout, setErrorTimeout] = useState(null);
 
-  // Clear error after 4 seconds
-  useEffect(() => {
-    if (error) {
-      if (errorTimeout) clearTimeout(errorTimeout);
-      const timeout = setTimeout(() => setError(null), 4000);
-      setErrorTimeout(timeout);
-    }
-    return () => {
-      if (errorTimeout) clearTimeout(errorTimeout);
-    };
-  }, [error]);
+  const showToast = useCallback((message, type = "info") => {
+    setToast({ message, type, id: Date.now() });
+  }, []);
 
-  const handleCountrySelect = async (code) => {
+  const handleCountrySelect = useCallback(async (code) => {
     if (!code) {
-      setCountryCode(null);
-      setCountryData(null);
-      setError("🌊 Ocean! Try clicking on a country.");
+      showToast("You clicked the ocean — try a country!", "ocean");
       return;
     }
 
-    if (code === countryCode) {
-      return;
-    }
+    if (code === countryCode) return;
 
     setCountryCode(code);
     setCountryData(null);
-    setError(null);
     setLoading(true);
 
     try {
       const response = await fetch(`${apiBase}/api/countries/${code}`);
-      if (!response.ok) {
-        throw new Error("⚠️ Country details unavailable.");
-      }
-
+      if (!response.ok) throw new Error("not_found");
       const data = await response.json();
       setCountryData(data);
-    } catch (fetchError) {
-      setError(fetchError.message || "🔌 Connection error. Check your server.");
+    } catch (_err) {
+      showToast(`No data available for ${getCountryName(code)} yet`, "error");
       setCountryCode(null);
     } finally {
       setLoading(false);
     }
-  };
+  }, [countryCode, showToast]);
 
-  const handleHover = (countryCode, position) => {
-    setHoveredCountry(countryCode);
+  const handleHover = useCallback((code, position) => {
+    setHoveredCountry(code);
     setHoverPosition(position);
-  };
+  }, []);
 
-  const handleHoverEnd = () => {
-    setHoveredCountry(null);
-  };
+  const handleHoverEnd = useCallback(() => setHoveredCountry(null), []);
 
-  const handleCountrySearch = async (countryName, coords) => {
-    // Find country code from the country name
-    const countryCodeMap = {
-      "India": "IN",
-      "United States": "US",
-      "Japan": "JP",
-      "France": "FR",
-      "United Kingdom": "GB",
-      "Germany": "DE",
-      "Canada": "CA",
-      "Australia": "AU",
-      "Brazil": "BR",
-      "Mexico": "MX",
-      "Italy": "IT",
-      "Spain": "ES",
-      "South Korea": "KR",
-      "Singapore": "SG",
-      "UAE": "AE",
-      "Egypt": "EG",
-      "South Africa": "ZA",
-      "Argentina": "AR",
-      "Chile": "CL",
-      "Thailand": "TH",
-    };
-
-    const code = countryCodeMap[countryName];
-    if (code) {
-      handleCountrySelect(code);
-      if (coords && globeRef.current?.rotateToCountry) {
-        globeRef.current.rotateToCountry(coords.lat, coords.lon);
-      }
+  const handleCountrySearch = useCallback(async (code, coords) => {
+    await handleCountrySelect(code);
+    if (coords && globeRef.current?.rotateToCountry) {
+      globeRef.current.rotateToCountry(coords.lat, coords.lon);
     }
-  };
+  }, [handleCountrySelect]);
 
-  // Get hover country name from code
-  const getCountryNameFromCode = (code) => {
-    const nameMap = {
-      "IN": "🇮🇳 India", "US": "🇺🇸 USA", "JP": "🇯🇵 Japan", "FR": "🇫🇷 France",
-      "GB": "🇬🇧 UK", "DE": "🇩🇪 Germany", "CA": "🇨🇦 Canada", "AU": "🇦🇺 Australia",
-      "BR": "🇧🇷 Brazil", "MX": "🇲🇽 Mexico", "IT": "🇮🇹 Italy", "ES": "🇪🇸 Spain",
-      "KR": "🇰🇷 South Korea", "SG": "🇸🇬 Singapore", "AE": "🇦🇪 UAE", "EG": "🇪🇬 Egypt",
-      "ZA": "🇿🇦 South Africa", "AR": "🇦🇷 Argentina", "CL": "🇨🇱 Chile", "TH": "🇹🇭 Thailand"
-    };
-    return nameMap[code] || code;
-  };
+  const handleClose = useCallback(() => {
+    setCountryCode(null);
+    setCountryData(null);
+  }, []);
 
   return (
     <div className="app-shell">
@@ -123,13 +72,23 @@ function App() {
         countryCode={countryCode}
         countryData={countryData}
         loading={loading}
-        error={error}
         viewMode={viewMode}
         onCountrySearch={handleCountrySearch}
         onModeChange={setViewMode}
+        onClose={handleClose}
+        globeRef={globeRef}
       />
 
       <main className="globe-frame">
+        {/* Branding Header */}
+        <header className="globe-header">
+          <div className="globe-header-brand">
+            <span className="globe-header-icon">🌍</span>
+            <span className="globe-header-title">Explore Earth</span>
+            <span className="globe-header-sub">3D Interactive Globe</span>
+          </div>
+        </header>
+
         <Globe
           ref={globeRef}
           onCountrySelect={handleCountrySelect}
@@ -138,15 +97,34 @@ function App() {
           highlightedCountry={countryCode}
           viewMode={viewMode}
         />
-        <Tooltip
-          countryName={hoveredCountry && !countryCode ? getCountryNameFromCode(hoveredCountry) : null}
-          visible={hoveredCountry && !countryCode}
-          position={hoverPosition}
-        />
+
+        {/* Hover Tooltip — only shows when no country is selected */}
+        {hoveredCountry && !countryCode && (
+          <Tooltip
+            countryCode={hoveredCountry}
+            position={hoverPosition}
+          />
+        )}
+
+        {/* Bottom hint */}
+        {!countryCode && (
+          <p className="globe-hint">
+            ✦ Click any country to explore &nbsp;·&nbsp; Drag to rotate &nbsp;·&nbsp; Scroll to zoom
+          </p>
+        )}
       </main>
+
+      {/* Toast — keyed by id so each new toast is a fresh mount */}
+      {toast && (
+        <Toast
+          key={toast.id}
+          message={toast.message}
+          type={toast.type}
+          onDismiss={() => setToast(null)}
+        />
+      )}
     </div>
   );
 }
 
 export default App;
-
