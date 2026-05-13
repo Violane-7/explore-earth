@@ -1,0 +1,55 @@
+.tooltip-container {
+  z-index: 999;
+  pointer-events: none;
+}
+
+.tooltip-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: rgba(10, 20, 36, 0.98);
+  border: 1.5px solid rgba(99, 180, 255, 0.5);
+  border-radius: 10px;
+  backdrop-filter: blur(16px);
+  white-space: nowrap;
+  animation: tooltipFadeIn 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.tooltip-flag {
+  font-size: 1rem;
+  display: inline-block;
+}
+
+.tooltip-text {
+  color: #e0e8ff;
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.tooltip-arrow {
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 8px solid rgba(10, 20, 36, 0.98);
+  filter: drop-shadow(0 -2px 4px rgba(0, 0, 0, 0.2));
+}
